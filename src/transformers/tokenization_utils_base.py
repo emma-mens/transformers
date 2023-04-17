@@ -3179,7 +3179,8 @@ class PreTrainedTokenizerBase(SpecialTokensMixin, PushToHubMixin):
             token_type_ids = [0] * len(ids) + ([0] * len(pair_ids) if pair else [])
 
         # Build output dictionary
-        encoded_inputs["input_ids"] = sequence
+        encoded_inputs["input_ids"] = sequence#[:100]
+        #k
         if return_token_type_ids:
             encoded_inputs["token_type_ids"] = token_type_ids
         if return_special_tokens_mask:

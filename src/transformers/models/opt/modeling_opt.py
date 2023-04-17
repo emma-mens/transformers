@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ PyTorch OPT model."""
+import sys
 import random
 from typing import List, Optional, Tuple, Union
 
@@ -269,6 +270,8 @@ class OPTAttention(nn.Module):
 
         attn_output = self.out_proj(attn_output)
 
+        print('attn', len(past_key_value))
+
         return attn_output, attn_weights_reshaped, past_key_value
 
 
@@ -368,7 +371,7 @@ class OPTDecoderLayer(nn.Module):
 
         if use_cache:
             outputs += (present_key_value,)
-
+        print('optdecoder', len(outputs), sys.getsizeof(outputs), sys.getsizeof(present_key_value))
         return outputs
 
 
@@ -612,6 +615,10 @@ class OPTDecoder(OPTPreTrainedModel):
             return_dict (`bool`, *optional*):
                 Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
+        # print(past_key_values, 'use cache', use_cache)
+        # print('past_key_values size', sys.getsizeof(past_key_values))
+        # k
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -672,6 +679,9 @@ class OPTDecoder(OPTPreTrainedModel):
                         f"The `{mask_name}` should be specified for {len(self.layers)} layers, but it is for"
                         f" {head_mask.size()[0]}."
                     )
+        print('decoder past_key_values size', sys.getsizeof(past_key_values), 'n_layers', len(self.layers))
+        if past_key_values:
+            print('n_cache', len(past_key_values), past_key_values[0].shape,)
 
         for idx, decoder_layer in enumerate(self.layers):
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
@@ -729,6 +739,7 @@ class OPTDecoder(OPTPreTrainedModel):
             all_hidden_states += (hidden_states,)
 
         next_cache = next_decoder_cache if use_cache else None
+        print('next_decoder_cache', sys.getsizeof(next_decoder_cache))
         if not return_dict:
             return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
         return BaseModelOutputWithPast(
@@ -785,6 +796,7 @@ class OPTModel(OPTPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
+        print('optmodel past_key_values size', sys.getsizeof(past_key_values))
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
             input_ids=input_ids,
@@ -927,7 +939,9 @@ class OPTForCausalLM(OPTPreTrainedModel):
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "Hey, are you consciours? Can you talk to me?\nI'm not consciours, but I can talk to you."
         ```"""
-
+        USE_CACHE = True # TODO(emazuh): by defaults, use_cache is false, find the config to update and remove this.
+        use_cache = USE_CACHE
+        print('causal', use_cache)
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -962,6 +976,7 @@ class OPTForCausalLM(OPTPreTrainedModel):
             output = (logits,) + outputs[1:]
             return (loss,) + output if loss is not None else output
 
+        print('causal past_key_values size', sys.getsizeof(outputs.past_key_values))
         return CausalLMOutputWithPast(
             loss=loss,
             logits=logits,
